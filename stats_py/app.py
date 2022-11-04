@@ -41,6 +41,16 @@ def get_stats_service_op(service, op):
             return None
         return stat.visits
 
+def update_stats_service_op(service, op):
+    with app.app_context():
+        stat = db.session.query(Stats).filter_by(service=service, op=op).first()
+        if stat is None:
+            return False
+        else:
+            stat.visits += 1
+            db.session.commit()
+            return True
+
 # return dict with all service stats per op
 def get_stats_service(service):
     with app.app_context():
@@ -72,12 +82,19 @@ def get_stats():
                 stats_dict[service][op] = {"percentage": stats_dict[service][op]/visits, "visits": stats_dict[service][op]}
         return stats_dict
 
-@app.route('/stats/<service>/<op>')
-def service_op(service, op):
+@app.route('/stats/<service>/<op>', methods=['GET'])
+def service_op_get(service, op):
     stat = get_stats_service_op(service, op)
     if stat is None:
         return make_response('Invalid input (no such service or operation)\n', 400)
     return make_response(jsonify(visits=stat), 200)
+
+@app.route('/stats/<service>/<op>', methods=['POST'])
+def service_op_post(service, op):
+    if update_stats_service_op(service, op):
+        return make_response('Updated\n', 200)
+    else:
+        return make_response('Invalid input (no such service or operation)\n', 400)
     
 @app.route('/stats/<service>')
 def service(service):
